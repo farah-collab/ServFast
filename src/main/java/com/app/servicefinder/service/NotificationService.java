@@ -16,12 +16,13 @@ public class NotificationService {
     public void createNotification(Long userId, String message, String type) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) return;
-        notificationRepository.save(Notification.builder()
+        Notification notif = Notification.builder()
                 .message(message)
                 .type(type)
                 .isRead(false)
                 .user(user)
-                .build());
+                .build();
+        notificationRepository.save(notif);
     }
  
     public List<Notification> getAll(Long userId) {
@@ -31,7 +32,9 @@ public class NotificationService {
     public void markAsRead(Long notifId, Long userId) {
         Notification notif = notificationRepository.findById(notifId)
                 .orElseThrow(() -> new RuntimeException("Notification non trouvée"));
-        if (!notif.getUser().getId().equals(userId)) throw new RuntimeException("Non autorisé");
+        if (!notif.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Non autorisé");
+        }
         notif.setIsRead(true);
         notificationRepository.save(notif);
     }

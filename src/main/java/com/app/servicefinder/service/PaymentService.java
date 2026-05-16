@@ -1,7 +1,6 @@
 package com.app.servicefinder.service;
  
 import com.app.servicefinder.dto.payment.*;
-import com.app.servicefinder.model.*;
 import com.app.servicefinder.repository.*;
 import com.stripe.Stripe;
 import com.stripe.model.PaymentIntent;
@@ -15,17 +14,14 @@ import org.springframework.stereotype.Service;
 public class PaymentService {
  
     private final ServiceRepository serviceRepository;
-    private final UserRepository userRepository;
     private final NotificationService notificationService;
  
     @Value("${stripe.secret.key}")
     private String stripeSecretKey;
  
-    public PaymentResponseDTO createPaymentIntent(Long userId, PaymentRequest request) {
+public PaymentResponseDTO createPaymentIntent(Long userId, PaymentRequest request) {
         Stripe.apiKey = stripeSecretKey;
- 
-        com.app.servicefinder.model.Service service = serviceRepository
-                .findById(request.getServiceId())
+        serviceRepository.findById(request.getServiceId())
                 .orElseThrow(() -> new RuntimeException("Service non trouvé"));
  
         try {
@@ -50,7 +46,7 @@ public class PaymentService {
                     .build();
  
         } catch (Exception e) {
-            throw new RuntimeException("Erreur de paiement: " + e.getMessage());
+            throw new IllegalArgumentException("Erreur de paiement: " + e.getMessage());
         }
     }
  
@@ -72,7 +68,7 @@ public class PaymentService {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Erreur lors de la confirmation: " + e.getMessage());
+            throw new IllegalArgumentException("Erreur lors de la confirmation: " + e.getMessage());
         }
     }
 }

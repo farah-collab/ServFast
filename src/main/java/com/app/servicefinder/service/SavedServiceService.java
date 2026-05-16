@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import java.util.stream.Collectors;
  
 @Service
 @RequiredArgsConstructor
@@ -20,10 +19,12 @@ public class SavedServiceService {
  
     public void save(Long userId, Long serviceId) {
         if (savedServiceRepository.existsByUserIdAndServiceId(userId, serviceId)) {
-            throw new RuntimeException("Service déjà sauvegardé");
+            throw new IllegalArgumentException("Service déjà sauvegardé");
         }
-        User user = userRepository.findById(userId).orElseThrow();
-        com.app.servicefinder.model.Service service = serviceRepository.findById(serviceId).orElseThrow();
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        com.app.servicefinder.model.Service service = serviceRepository.findById(serviceId)
+            .orElseThrow(() -> new RuntimeException("Service not found"));
         savedServiceRepository.save(SavedService.builder().user(user).service(service).build());
     }
  
@@ -36,7 +37,7 @@ public class SavedServiceService {
         return savedServiceRepository.findByUserId(userId)
                 .stream()
                 .map(ss -> serviceService.mapToDTO(ss.getService()))
-                .collect(Collectors.toList());
+                .toList();
     }
  
     public boolean isSaved(Long userId, Long serviceId) {

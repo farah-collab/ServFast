@@ -26,7 +26,9 @@ public class Service {
     private Double latitude;
     private Double longitude;
 
+    @Builder.Default
     private Boolean isAvailable = true;
+    @Builder.Default
     private Integer viewsCount = 0;
 
     @ManyToOne

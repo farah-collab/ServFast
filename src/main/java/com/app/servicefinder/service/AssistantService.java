@@ -2,7 +2,6 @@ package com.app.servicefinder.service;
  
 import com.app.servicefinder.dto.assistant.*;
 import com.app.servicefinder.repository.CategoryRepository;
-import com.app.servicefinder.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -25,7 +24,7 @@ public class AssistantService {
     public AssistantResponse chat(AssistantRequest request) {
         // Récupérer les catégories disponibles
         List<String> categories = categoryRepository.findAll()
-                .stream().map(c -> c.getName()).toList();
+                .stream().map(c -> c.getName()).collect(java.util.stream.Collectors.toList());
  
         String systemPrompt = """
             Tu es ServBot, l'assistant intelligent de ServFast, une marketplace de services en Tunisie.
@@ -51,17 +50,31 @@ public class AssistantService {
         body.put("model", "claude-3-haiku-20240307");
         body.put("max_tokens", 500);
         body.put("system", systemPrompt);
-        body.put("messages", List.of(Map.of("role", "user", "content", request.getMessage())));
+        List<Map<String, Object>> messages = new ArrayList<>();
+        Map<String, Object> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", request.getMessage());
+        messages.add(userMessage);
+
+        body.put("messages", messages);
  
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
  
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(ANTHROPIC_API_URL, entity, Map.class);
-            Map responseBody = response.getBody();
-            List content = (List) responseBody.get("content");
-            Map firstContent = (Map) content.get(0);
+            @SuppressWarnings("rawtypes")
+            ResponseEntity response = restTemplate.postForEntity(ANTHROPIC_API_URL, entity, Map.class);
+            Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+            if (responseBody == null) {
+                throw new IllegalArgumentException("Empty response from API");
+            }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> content = (List<Map<String, Object>>) responseBody.get("content");
+            if (content == null || content.isEmpty()) {
+                throw new IllegalArgumentException("No content in response");
+            }
+            Map<String, Object> firstContent = content.get(0);
             String reply = (String) firstContent.get("text");
- 
+
             return AssistantResponse.builder()
                     .reply(reply)
                     .conversationId(request.getConversationId() != null ?

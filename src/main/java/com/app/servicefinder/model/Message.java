@@ -5,37 +5,33 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "contacts")
+@Table(name = "messages")
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
-public class Contact {
+public class Message {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 2000, nullable = false)
-    private String message;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_id", nullable = false)
+    private User sender;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receiver_id", nullable = false)
+    private User receiver;
+
+    @Column(nullable = false, length = 2000)
+    private String content;
 
     @Builder.Default
     private Boolean isRead = false;
 
-    @ManyToOne
-    @JoinColumn(name = "sender_id", nullable = false)
-    private User sender;
-
-    @ManyToOne
-    @JoinColumn(name = "receiver_id", nullable = false)
-    private User receiver;
-
-    @ManyToOne
-    @JoinColumn(name = "service_id")
-    private Service service;
-
     @Column(updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime sentAt;
 
     @PrePersist
     public void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.sentAt = LocalDateTime.now();
     }
 }

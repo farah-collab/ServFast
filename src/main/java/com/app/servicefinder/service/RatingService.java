@@ -1,66 +1,100 @@
 package com.app.servicefinder.service;
- 
+
 import com.app.servicefinder.dto.rating.*;
 import com.app.servicefinder.model.*;
 import com.app.servicefinder.repository.*;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
- 
+
 @Service
 @RequiredArgsConstructor
 public class RatingService {
- 
+
     private final RatingRepository ratingRepository;
-    private final ServiceRepository serviceRepository;
     private final UserRepository userRepository;
-    private final NotificationService notificationService;
-    private final ServiceService serviceService;
- 
-    public RatingResponseDTO addRating(Long reviewerId, RatingRequest request) {
-        if (ratingRepository.existsByReviewerIdAndServiceId(reviewerId, request.getServiceId())) {
-            throw new RuntimeException("Vous avez déjà noté ce service");
-        }
-        User reviewer = userRepository.findById(reviewerId)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+    private final ServiceRepository serviceRepository;
+
+    @Transactional
+    public RatingResponseDTO createOrUpdate(Long userId, RatingRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
         com.app.servicefinder.model.Service service = serviceRepository.findById(request.getServiceId())
-                .orElseThrow(() -> new RuntimeException("Service non trouvé"));
- 
-        Rating rating = Rating.builder()
-                .score(request.getScore())
-                .comment(request.getComment())
-                .reviewer(reviewer)
-                .service(service)
-                .build();
-        rating = ratingRepository.save(rating);
- 
-        // Notifier le propriétaire du service
-        notificationService.createNotification(
-            service.getUser().getId(),
-            reviewer.getFullName() + " a laissé une note " + request.getScore() + "/5 sur votre service '" + service.getTitle() + "'",
-            "RATING"
-        );
- 
-        // Vérifier si le service doit être désactivé
-        serviceService.checkAndDisableIfBadRatings(service.getId());
- 
-        return mapToDTO(rating);
+            .orElseThrow(() -> new RuntimeException("Service not found"));
+
+        Rating rating = ratingRepository.findByUser_IdAndService_Id(userId, request.getServiceId())
+            .orElse(Rating.builder().user(user).service(service).build());
+
+        rating.setScore(request.getScore());
+        rating.setComment(request.getComment());
+
+        return toDTO(ratingRepository.save(rating));
     }
- 
+
+    @Transactional(readOnly = true)
     public List<RatingResponseDTO> getByService(Long serviceId) {
-        return ratingRepository.findByServiceId(serviceId)
-                .stream().map(this::mapToDTO).collect(Collectors.toList());
+        return ratingRepository.findByService_IdOrderByCreatedAtDesc(serviceId)
+            .stream().map(this::toDTO).toList();
     }
- 
-    private RatingResponseDTO mapToDTO(Rating r) {
-        return RatingResponseDTO.builder()
+
+    @Transactional(readOnly = true)
+    public List<RatingResponseDTO> getByUser(Long userId) {
+        return ratingRepository.findByUser_IdOrderByCreatedAtDesc(userId)
+            .stream().map(this::toDTO).toList();
+    }
+
+    @Transactional
+    public void delete(Long ratingId, Long userId) {
+        Rating rating = ratingRepository.findById(ratingId)
+            .orElseThrow(() -> new RuntimeException("Rating not found"));
+        if (!rating.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Not authorized to delete this rating");
+        }
+        ratingRepository.delete(rating);
+    }
+
+    public Double getAverageScore(Long serviceId) {
+        Double avg = ratingRepository.findAverageScoreByServiceId(serviceId);
+        return avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0;
+    }
+
+    public Long getCount(Long serviceId) {
+        return ratingRepository.countByService_Id(serviceId);
+    }
+
+    public List<RatingResponseDTO> getRecentWithComment(int limit) {
+        return ratingRepository
+            .findByCommentIsNotNullOrderByCreatedAtDesc(PageRequest.of(0, limit))
+            .stream()
+            .map(r -> RatingResponseDTO.builder()
                 .id(r.getId())
+                .serviceId(r.getService().getId())
+                .userId(r.getUser().getId())
+                .userName(r.getUser().getFirstName() + " " + r.getUser().getLastName())
+                .userPhoto(r.getUser().getProfilePhoto())
                 .score(r.getScore())
                 .comment(r.getComment())
-                .reviewerName(r.getReviewer().getFullName())
-                .reviewerPhoto(r.getReviewer().getProfilePhoto())
                 .createdAt(r.getCreatedAt())
-                .build();
+                .updatedAt(r.getUpdatedAt())
+                .build())
+            .collect(Collectors.toList());
     }
-}
+
+    private RatingResponseDTO toDTO(Rating r) {
+        return RatingResponseDTO.builder()
+            .id(r.getId())
+            .serviceId(r.getService().getId())
+            .userId(r.getUser().getId())
+            .userName(r.getUser().getFirstName() + " " + r.getUser().getLastName())
+            .userPhoto(r.getUser().getProfilePhoto())
+            .score(r.getScore())
+            .comment(r.getComment())
+            .createdAt(r.getCreatedAt())
+            .updatedAt(r.getUpdatedAt())
+            .build();
+    }
+}

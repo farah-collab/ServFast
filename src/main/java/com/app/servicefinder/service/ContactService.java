@@ -6,7 +6,6 @@ import com.app.servicefinder.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
-import java.util.stream.Collectors;
  
 @Service
 @RequiredArgsConstructor
@@ -35,36 +34,36 @@ public class ContactService {
                 .service(service)
                 .isRead(false)
                 .build();
-        contact = contactRepository.save(contact);
- 
+        Contact saved = contactRepository.save(contact);
+
         // Notifier le destinataire
         notificationService.createNotification(
             receiver.getId(),
             sender.getFullName() + " vous a envoyé un message",
             "MESSAGE"
         );
- 
-        return mapToDTO(contact);
-    }
- 
-    public List<ContactResponseDTO> getInbox(Long userId) {
-        return contactRepository.findByReceiverId(userId)
-                .stream().map(this::mapToDTO).collect(Collectors.toList());
-    }
- 
-    public List<ContactResponseDTO> getSent(Long userId) {
-        return contactRepository.findBySenderId(userId)
-                .stream().map(this::mapToDTO).collect(Collectors.toList());
+
+        return mapToDTO(saved);
     }
  
     public void markAsRead(Long contactId, Long userId) {
         Contact contact = contactRepository.findById(contactId)
                 .orElseThrow(() -> new RuntimeException("Message non trouvé"));
         if (!contact.getReceiver().getId().equals(userId)) {
-            throw new RuntimeException("Non autorisé");
+            throw new IllegalArgumentException("Non autorisé");
         }
         contact.setIsRead(true);
         contactRepository.save(contact);
+    }
+ 
+    public List<ContactResponseDTO> getInbox(Long userId) {
+        return contactRepository.findByReceiverId(userId)
+                .stream().map(this::mapToDTO).toList();
+    }
+ 
+    public List<ContactResponseDTO> getSent(Long userId) {
+        return contactRepository.findBySenderId(userId)
+                .stream().map(this::mapToDTO).toList();
     }
  
     public long getUnreadCount(Long userId) {

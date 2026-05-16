@@ -16,6 +16,7 @@ public class Report {
     @Column(nullable = false)
     private String reason;
 
+    @Builder.Default
     private String status = "PENDING"; // PENDING, RESOLVED
 
     @ManyToOne

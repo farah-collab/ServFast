@@ -17,12 +17,14 @@ public class ReportService {
  
     public void submit(Long reporterId, ReportRequest request) {
         if (reportRepository.existsByReporterIdAndServiceId(reporterId, request.getServiceId())) {
-            throw new RuntimeException("Vous avez déjà signalé ce service");
+            throw new IllegalArgumentException("Vous avez déjà signalé ce service");
         }
-        User reporter = userRepository.findById(reporterId).orElseThrow();
+        User reporter = userRepository.findById(reporterId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
         com.app.servicefinder.model.Service service = serviceRepository
-                .findById(request.getServiceId()).orElseThrow();
- 
+                .findById(request.getServiceId())
+                .orElseThrow(() -> new RuntimeException("Service not found"));
+
         reportRepository.save(Report.builder()
                 .reason(request.getReason())
                 .reporter(reporter)
@@ -36,7 +38,8 @@ public class ReportService {
     }
  
     public void resolve(Long reportId) {
-        Report report = reportRepository.findById(reportId).orElseThrow();
+        Report report = reportRepository.findById(reportId)
+            .orElseThrow(() -> new RuntimeException("Report not found"));
         report.setStatus("RESOLVED");
         reportRepository.save(report);
     }

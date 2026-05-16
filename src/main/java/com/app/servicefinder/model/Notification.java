@@ -18,6 +18,7 @@ public class Notification {
 
     private String type; // MESSAGE, RATING, REPORT
 
+    @Builder.Default
     private Boolean isRead = false;
 
     @ManyToOne

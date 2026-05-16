@@ -2,6 +2,7 @@ package com.app.servicefinder.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.util.List;
 
 @Entity
 @Table(name = "categories")
@@ -12,9 +13,13 @@ public class Category {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
 
-    private String iconUrl;
     private String description;
+    private String icon;   
+    private String color;  
+
+    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
+    private List<Service> services;
 }
